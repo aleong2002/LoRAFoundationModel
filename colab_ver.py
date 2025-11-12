@@ -278,7 +278,7 @@ def main():
         "test": "/dataset/dart_masked_test.json"
     })
 
-    """ # ✅ Step 1: Mask transformation
+    """ # Mask transformation
     def mask_transform(example):
         triples = example["tripleset"]
         ref = example["annotations"][0]["text"]
@@ -289,6 +289,7 @@ def main():
         return {"input": ref, "target": ""}
 
     masked_dataset = dataset.map(mask_transform)
+    """
 
     def preprocess(example):
         masked_input = example["input"].replace("[MASK]", tokenizer.mask_token)  # Just in case
@@ -306,7 +307,6 @@ def main():
         inputs["labels"] = labels
         return inputs
 
-     """
 
     tokenized_train = masked_dataset["train"].map(preprocess, batched=False)
     tokenized_train.set_format(type="torch", columns=["input_ids", "attention_mask", "labels"])
@@ -330,7 +330,7 @@ def main():
     #torch.save(model.state_dict(), "/content/drive/MyDrive/lora_experiments/roberta_run1/roberta_lora.pt")
     # model.load_state_dict(torch.load("roberta_lora.pt"))
 
-    # ✅ Step 3: Evaluate on masked test set
+    # Evaluate on masked test set
     tokenized_test = masked_dataset["test"].map(preprocess, batched=False)
     evaluate_lora_on_dart("roberta_lora.pt", tokenized_test, tokenizer)
 
