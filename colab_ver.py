@@ -17,7 +17,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # !git clone https://github.com/aleong2002/LoRAFoundationModel.git to access datasets
 
-drive_path = "/roberta_run1"
+drive_path = "/content/drive/MyDrive/lora_experiments/roberta_run1"
 def save_checkpoint(model, optimizer, epoch, loss, save_dir="checkpoints"):
     os.makedirs(save_dir, exist_ok=True)
     timestamp = int(time.time())
@@ -43,7 +43,7 @@ def load_latest_checkpoint(model, optimizer, save_dir="checkpoints"):
             return checkpoint["epoch"] + 1  # Resume from next epoch
     return 0
 
-def save_checkpoint_to_drive(model, optimizer, epoch, loss, drive_path="/checkpoints"):
+def save_checkpoint_to_drive(model, optimizer, epoch, loss, drive_path="/content/drive/MyDrive/checkpoints"):
     os.makedirs(drive_path, exist_ok=True)
     timestamp = time.strftime("%Y%m%d-%H%M%S")
     filename = f"checkpoint_epoch{epoch}_{timestamp}.pt"
@@ -327,12 +327,8 @@ def main():
     train(model, dataloader, optimizer, loss_fn, device)
 
     torch.save(model.state_dict(), "roberta_lora.pt")
-    #torch.save(model.state_dict(), "/content/drive/MyDrive/lora_experiments/roberta_run1/roberta_lora.pt")
-    # model.load_state_dict(torch.load("roberta_lora.pt"))
-
-    # Evaluate on masked test set
-    tokenized_test = masked_dataset["test"].map(preprocess, batched=False)
-    evaluate_lora_on_dart("roberta_lora.pt", tokenized_test, tokenizer)
+    torch.save(model.state_dict(), "/content/drive/MyDrive/checkpoints/roberta_lora.pt")
+    evaluate_lora_on_dart("roberta_lora.pt", dataset)
 
 if __name__ == "__main__":
     main()
