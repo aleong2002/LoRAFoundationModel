@@ -5,18 +5,25 @@ import torch
 from LoraLayer import LoRARobertaMLM
 
 def load_model_from_checkpoint(model_path, device):
-    """Load LoRA model from checkpoint file."""
+    """
+    Load LoRA model from checkpoint (.pt).
+    """
     model = LoRARobertaMLM()
-    
-    # Load state dict
+
     state_dict = torch.load(model_path, map_location=device)
     model.load_state_dict(state_dict)
-    
+
     model.eval()
     model.to(device)
-    
+
     print(f"Model loaded from {model_path}")
+
+    trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    total_params = sum(p.numel() for p in model.parameters())
+    print(f"Loaded model - Trainable: {trainable_params:,} / Total: {total_params:,}")
+
     return model
+
 
 def save_checkpoint(model, optimizer, epoch, loss, save_dir="checkpoints"):
     os.makedirs(save_dir, exist_ok=True)
