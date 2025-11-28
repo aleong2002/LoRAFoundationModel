@@ -36,11 +36,13 @@ The goal is to evaluate the trade-offs between accuracy, efficiency, and resourc
    ```bash
    git clone https://github.com/aleong2002/LoRAFoundationModel.git
    cd LoRAFoundationModel
+   ```
 
 2. Install dependencies:
+  ```bash
    pip install torch transformers datasets scikit-learn psutil tqdm rouge nltk
-
-3. Run experiments:
+  ```
+4. Run experiments:
     - To train on TREC:
         python train_lora_roberta_terc.py
 
