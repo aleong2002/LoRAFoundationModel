@@ -17,7 +17,7 @@ The goal is to evaluate the trade-offs between accuracy, efficiency, and resourc
 
 ---
 
-## ⚙️ Experimental Setup
+## Experimental Setup
 - **Model Backbone**: `roberta-base`
 - **Fine-Tuning Variants**:
   - Full fine-tuning (all parameters trainable)
