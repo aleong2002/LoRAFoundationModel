@@ -211,7 +211,13 @@ def evaluate_lora_on_dart(
     print(f"Total examples: {len(test_data)}")
     print(f"Evaluated: {total}")
     print(f"Skipped: {skipped}")
-    print(f"Accuracy: {correct}/{total} ({accuracy:.2% if total > 0 else 0.0:.2f}%)")
+    # Build accuracy string safely
+    if total > 0:
+        accuracy_str = f"{correct}/{total} ({accuracy:.2%})"
+    else:
+        accuracy_str = "0/0 (0.00%)"
+
+    print(f"Accuracy: {accuracy_str}")
     print(f"Average BLEU: {avg_bleu:.3f}")
     print(f"Average ROUGE-L: {avg_rouge:.3f}")
     print(f"Evaluation time: {end_time - start_time:.2f}s")
