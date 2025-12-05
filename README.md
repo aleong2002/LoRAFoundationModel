@@ -44,9 +44,9 @@ The goal is to evaluate the trade-offs between accuracy, efficiency, and resourc
   ```
 4. Run experiments:
     - To train on TREC:
-        python train_lora_roberta_terc.py
+        python main.py --task trec
 
     - To train on DART:
-        python main.py
+        python main.py --task dart
 
     - Can also be run in CoLab for GPU access by cloning GitHub repo 
