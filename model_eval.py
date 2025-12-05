@@ -167,7 +167,6 @@ def evaluate_lora_on_dart(
         avg_rouge = 0.0
         print("WARNING: No results to save!")
 
-    # Efficiency logging
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     total_params = sum(p.numel() for p in model.parameters())
     checkpoint_size = os.path.getsize(model_path) / 1e6

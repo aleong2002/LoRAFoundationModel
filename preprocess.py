@@ -11,7 +11,7 @@ class Preprocessor:
         self.max_length = max_length
         self.batch_size = batch_size
 
-    def _build_labels_for_single_mask(self, input_ids, target_str):
+    def _build_labels(self, input_ids, target_str):
         
         try:
             mask_index = input_ids.index(self.tokenizer.mask_token_id)
@@ -60,7 +60,7 @@ class Preprocessor:
         )
 
         input_ids = enc["input_ids"]
-        labels = self._build_labels_for_single_mask(input_ids, target)
+        labels = self._build_labels(input_ids, target)
 
         enc["labels"] = labels
         return enc
