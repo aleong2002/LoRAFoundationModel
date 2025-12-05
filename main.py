@@ -324,7 +324,6 @@ def run_trec(args):
         if "lora_" not in name and "classifier" not in name:
             param.requires_grad = False
 
-    print("[TREC] training full fine-tuned RoBERTa")
     train_and_eval_trec(
         model_ft,
         "Fine-Tuned RoBERTa",
@@ -333,7 +332,6 @@ def run_trec(args):
         epochs=args.epochs,
         lr=args.lr
     )
-    print("[TREC] Training LoRA RoBERTa")
     train_and_eval_trec(
         model_lora,
         "LoRA RoBERTa",
