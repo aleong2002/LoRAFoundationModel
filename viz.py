@@ -10,6 +10,8 @@ import json
 
 from LoraLayer import *
 
+# from paper and official lora code for references
+
 plt.style.use('seaborn-v0_8-whitegrid')
 sns.set_palette("husl")
 
@@ -18,6 +20,7 @@ def load_lora_model(path, r, alpha=16, num_labels=6):
     model = inject_lora(model, r=r, alpha=alpha)
     model.load_state_dict(torch.load(path, map_location='cpu', weights_only=True))
     return model
+
 
 def extract_lora_weights(model):
     lora_data = []
@@ -35,6 +38,7 @@ def extract_lora_weights(model):
                                     'W_base': W_base, 'scaling': scaling, 'r': module.r}
         lora_data.append(layer_data)
     return lora_data
+
 
 def compute_subspace_similarity(U1, U2, i, j):
     U1_i = U1[:, :i]
@@ -83,7 +87,7 @@ def plot_rank_comparison(lora_data_r8, lora_data_r64, layer_idx, save_dir):
         plt.colorbar(im2, ax=axes[row, 1], label='φ(r=8, r=64, i, j)')
     
     plt.tight_layout()
-    plt.savefig(save_dir / f'fig3_rank_comparison_layer{layer_idx}.png', dpi=150, bbox_inches='tight')
+    plt.savefig(save_dir / f'rank_comparison_layer{layer_idx}.png', dpi=150, bbox_inches='tight')
     plt.close()
 
 def plot_seed_comparison(lora_data_s1, lora_data_s2, layer_idx, seed1, seed2, save_dir):
@@ -134,7 +138,7 @@ def plot_seed_comparison(lora_data_s1, lora_data_s2, layer_idx, seed1, seed2, sa
     plt.colorbar(im, ax=axes[2], label='φ')
     
     plt.tight_layout()
-    plt.savefig(save_dir / f'fig4_seed_comparison_layer{layer_idx}.png', dpi=150, bbox_inches='tight')
+    plt.savefig(save_dir / f'seed_comparison_layer{layer_idx}.png', dpi=150, bbox_inches='tight')
     plt.close()
 
 def main():

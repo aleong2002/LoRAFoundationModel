@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 from transformers import RobertaTokenizer, RobertaForMaskedLM
 
+# code reference https://medium.com/data-science/implementing-lora-from-scratch-20f838b046f1
+# additional references: https://lightning.ai/lightning-ai/environments/code-lora-from-scratch?section=featured
 
 class LoRALayer(nn.Module):
     def __init__(self, in_features, out_features, r=8, alpha=32, dropout=0.1):

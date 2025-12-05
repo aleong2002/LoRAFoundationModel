@@ -29,6 +29,9 @@ CHECKPOINT_DIR = "checkpoints"
 FINAL_MLM_MODEL_PATH = "roberta_lora_mlm.pt"
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+# code reference: https://huggingface.co/docs/peft/en/task_guides/lora_based_methods
+# for roberta: https://huggingface.co/docs/transformers/en/model_doc/roberta
+
 def train_mlm(model, dataloader, optimizer, loss_fn, device,
               epochs=3, save_dir=CHECKPOINT_DIR, final_model_path=FINAL_MLM_MODEL_PATH,
               model_name="LoRA"):
@@ -104,8 +107,6 @@ def run_dart(args):
 
     dataloader, masked_dataset = prepare_dart_datasets(preprocessor)
 
-    print("Training LoRA RoBERTa MLM")
-    
     lora_model = LoRARobertaMLM(
         base_model_name="roberta-base",
         r=args.lora_r,
@@ -161,8 +162,7 @@ def run_dart(args):
         full_optimizer = AdamW(full_model.parameters(), lr=args.lr, weight_decay=0.01)
         loss_fn = nn.CrossEntropyLoss(ignore_index=-100)
 
-        print(f"Full Model - Trainable params: {sum(p.numel() for p in full_model.parameters()):,}")
-        print(f"Full Model - Total params: {sum(p.numel() for p in full_model.parameters()):,}")
+        print(f"FT-Trainable params: {sum(p.numel() for p in full_model.parameters()):,}")
         
         full_model = train_mlm(
             full_model,
@@ -190,7 +190,6 @@ def run_dart(args):
         device=DEVICE
     )
 
-    print("COMPARISON SUMMARY")
     lora_trainable = sum(p.numel() for p in lora_model.parameters() if p.requires_grad)
     lora_total = sum(p.numel() for p in lora_model.parameters())
     full_trainable = sum(p.numel() for p in full_model.parameters())
