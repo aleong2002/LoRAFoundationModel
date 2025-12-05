@@ -32,6 +32,7 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # code reference: https://huggingface.co/docs/peft/en/task_guides/lora_based_methods
 # for roberta: https://huggingface.co/docs/transformers/en/model_doc/roberta
 
+# Train a masked language model (MLM) with checkpoint resume, step/epoch logging, GPU memory stats, and final model save
 def train_mlm(model, dataloader, optimizer, loss_fn, device,
               epochs=3, save_dir=CHECKPOINT_DIR, final_model_path=FINAL_MLM_MODEL_PATH,
               model_name="LoRA"):
@@ -87,7 +88,7 @@ def train_mlm(model, dataloader, optimizer, loss_fn, device,
     print(f"[DART-{model_name}] Final MLM model saved to {final_model_path}")
     return model
 
-
+# Load masked DART train/test datasets from JSON and create a DataLoader using the given preprocessor
 def prepare_dart_datasets(preprocessor: Preprocessor):
     masked_dataset = load_dataset(
         "json",
@@ -99,7 +100,7 @@ def prepare_dart_datasets(preprocessor: Preprocessor):
     dataloader = preprocessor.get_dataloader(masked_dataset)
     return dataloader, masked_dataset
 
-
+# Set up DART run: initialize tokenizer, preprocessor, datasets, and LoRA-augmented RoBERTa model with config
 def run_dart(args):
     print("[DART] Using device:", DEVICE)
     tokenizer = RobertaTokenizer.from_pretrained("roberta-base")
@@ -199,7 +200,7 @@ def run_dart(args):
     print(f"Full Fine-Tuned Model:")
     print(f"Trainable: {full_trainable:,} / {full_trainable:,} (100.00%)")
 
-
+# Load and preprocess TREC train/test datasets with RoBERTa tokenizer, returning PyTorch DataLoaders
 def prepare_trec_datasets(max_length=128, train_bs=16, test_bs=32):
     tokenizer = RobertaTokenizer.from_pretrained("roberta-base")
 
@@ -224,7 +225,8 @@ def prepare_trec_datasets(max_length=128, train_bs=16, test_bs=32):
     test_loader = DataLoader(encoded["test"], batch_size=test_bs)
     return train_loader, test_loader
 
-
+# Train and evaluate a TREC classification model: runs training with AdamW, logs epoch loss/time, 
+# saves weights, evaluates accuracy and loss on test data, and reports parameter counts and memory usage
 def train_and_eval_trec(model, name, train_loader, test_loader, epochs=3, lr=2e-5):
     model.to(DEVICE)
     optimizer = AdamW(filter(lambda p: p.requires_grad, model.parameters()), lr=lr)
@@ -294,7 +296,8 @@ def train_and_eval_trec(model, name, train_loader, test_loader, epochs=3, lr=2e-
         cpu_mem = process.memory_info().rss / (1024 ** 2)
         print(f"{name} Peak CPU Memory Usage: {cpu_mem:.2f} MB")
 
-
+# Run TREC experiment: prepare datasets, initialize standard and LoRA-augmented RoBERTa models, 
+# freeze non-LoRA parameters, then train and evaluate both for comparison
 def run_trec(args):
     print("[TREC] Using device:", DEVICE)
     train_loader, test_loader = prepare_trec_datasets(
@@ -339,7 +342,8 @@ def run_trec(args):
         epochs=args.epochs,
         lr=args.lr
     )
-
+    
+# Entry point: parse command-line arguments for LoRA experiments and run either DART or TREC task
 def main():
     parser = argparse.ArgumentParser(description="lora experiments")
     parser.add_argument(
