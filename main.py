@@ -22,7 +22,7 @@ from transformers import (
 from preprocess import Preprocessor
 from LoraLayer import LoRARobertaMLM, inject_lora
 from model_eval import evaluate_lora_on_dart
-from model_loader import save_checkpoint_to_drive, load_latest_checkpoint
+from model_loader import save_checkpoint_to_folder, load_latest_checkpoint
 
 USE_SAVED_CHECKPOINT = True
 CHECKPOINT_DIR = "checkpoints"
@@ -78,7 +78,7 @@ def train_mlm(model, dataloader, optimizer, loss_fn, device,
         avg_loss = epoch_loss / max(1, num_batches)
         print(f"[DART-{model_name}] Epoch {epoch} completed. Average loss: {avg_loss:.4f}")
 
-        save_checkpoint_to_drive(model, optimizer, epoch, avg_loss, save_dir)
+        save_checkpoint_to_folder(model, optimizer, epoch, avg_loss, folder=save_dir)
 
     torch.save(model.state_dict(), final_model_path)
     print(f"[DART-{model_name}] Final MLM model saved to {final_model_path}")
@@ -176,7 +176,7 @@ def run_dart(args):
             model_name="Full"
         )
     else:
-        print(f"[DART] Skipping training. Using saved model at {full_model_path}")
+        print(f"[DART] using {full_model_path}")
         state_dict = torch.load(full_model_path, map_location=DEVICE)
         full_model.load_state_dict(state_dict)
         full_model.eval()

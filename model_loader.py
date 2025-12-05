@@ -48,11 +48,11 @@ def load_latest_checkpoint(model, optimizer, save_dir="checkpoints"):
             return checkpoint["epoch"] + 1 
     return 0
 
-def save_checkpoint_to_drive(model, optimizer, epoch, loss, drive_path="checkpoints"):
-    os.makedirs(drive_path, exist_ok=True)
+def save_checkpoint_to_folder(model, optimizer, epoch, loss, folder="checkpoints"):
+    os.makedirs(folder, exist_ok=True)
     timestamp = time.strftime("%Y%m%d-%H%M%S")
     filename = f"checkpoint_epoch{epoch}_{timestamp}.pt"
-    filepath = os.path.join(drive_path, filename)
+    filepath = os.path.join(folder, filename)
 
     torch.save({
         "epoch": epoch,
