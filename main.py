@@ -16,30 +16,31 @@ from sklearn.metrics import accuracy_score
 from transformers import (
     RobertaTokenizer,
     RobertaForSequenceClassification,
+    RobertaForMaskedLM,
 )
-from transformers.models.roberta.modeling_roberta import RobertaSelfAttention
 
 from preprocess import Preprocessor
 from LoraLayer import LoRARobertaMLM, inject_lora
 from model_eval import evaluate_lora_on_dart
 from model_loader import save_checkpoint_to_drive, load_latest_checkpoint
 
-USE_SAVED_CHECKPOINT = False
+USE_SAVED_CHECKPOINT = True
 CHECKPOINT_DIR = "checkpoints"
 FINAL_MLM_MODEL_PATH = "roberta_lora_mlm.pt"
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def train_mlm(model, dataloader, optimizer, loss_fn, device,
-              epochs=3, save_dir=CHECKPOINT_DIR, final_model_path=FINAL_MLM_MODEL_PATH):
+              epochs=3, save_dir=CHECKPOINT_DIR, final_model_path=FINAL_MLM_MODEL_PATH,
+              model_name="LoRA"):
     model.to(device)
     model.train()
 
     start_epoch = 0
     try:
         start_epoch = load_latest_checkpoint(model, optimizer, save_dir)
-        print(f"[DART] Resuming training from epoch {start_epoch}")
+        print(f"[DART-{model_name}] Resuming training from epoch {start_epoch}")
     except Exception as e:
-        print(f"[DART] No previous checkpoint found or failed to load ({e}). Starting from scratch.")
+        print(f"[DART-{model_name}] No previous checkpoint found or failed to load ({e}). Starting from scratch.")
 
     for epoch in range(start_epoch, epochs):
         epoch_loss = 0.0
@@ -66,7 +67,7 @@ def train_mlm(model, dataloader, optimizer, loss_fn, device,
             num_batches += 1
 
             if step % 100 == 0:
-                print(f"[DART][Epoch {epoch}] Step {step} - Loss: {loss.item():.4f}")
+                print(f"[DART-{model_name}][Epoch {epoch}] Step {step} - Loss: {loss.item():.4f}")
 
                 if torch.cuda.is_available():
                     allocated = torch.cuda.memory_allocated() / 1024**2
@@ -75,12 +76,12 @@ def train_mlm(model, dataloader, optimizer, loss_fn, device,
                     print(f"  GPU memory reserved: {reserved:.2f} MB")
 
         avg_loss = epoch_loss / max(1, num_batches)
-        print(f"[DART] Epoch {epoch} completed. Average loss: {avg_loss:.4f}")
+        print(f"[DART-{model_name}] Epoch {epoch} completed. Average loss: {avg_loss:.4f}")
 
         save_checkpoint_to_drive(model, optimizer, epoch, avg_loss, save_dir)
 
     torch.save(model.state_dict(), final_model_path)
-    print(f"[DART] Final MLM model saved to {final_model_path}")
+    print(f"[DART-{model_name}] Final MLM model saved to {final_model_path}")
     return model
 
 
@@ -103,37 +104,101 @@ def run_dart(args):
 
     dataloader, masked_dataset = prepare_dart_datasets(preprocessor)
 
-    model = LoRARobertaMLM()
-    model.to(DEVICE)
+    print("Training LoRA RoBERTa MLM")
+    
+    lora_model = LoRARobertaMLM(
+        base_model_name="roberta-base",
+        r=args.lora_r,
+        alpha=args.lora_alpha
+    )
+    lora_model.to(DEVICE)
 
-    if not USE_SAVED_CHECKPOINT or not os.path.exists(FINAL_MLM_MODEL_PATH):
-        trainable_params = [p for p in model.parameters() if p.requires_grad]
-        optimizer = AdamW(trainable_params, lr=args.lr, weight_decay=0.01)
+    lora_checkpoint_dir = f"{CHECKPOINT_DIR}_lora"
+    lora_model_path = "roberta_lora.pt"
+    
+    if not USE_SAVED_CHECKPOINT or not os.path.exists(lora_model_path):
+        trainable_params = [p for p in lora_model.parameters() if p.requires_grad]
+        lora_optimizer = AdamW(trainable_params, lr=args.lr, weight_decay=0.01)
         loss_fn = nn.CrossEntropyLoss(ignore_index=-100)
 
-        model = train_mlm(
-            model,
+        print(f"LoRA Model - Trainable params: {sum(p.numel() for p in trainable_params):,}")
+        print(f"LoRA Model - Total params: {sum(p.numel() for p in lora_model.parameters()):,}")
+        
+        lora_model = train_mlm(
+            lora_model,
             dataloader,
-            optimizer,
+            lora_optimizer,
             loss_fn,
             device=DEVICE,
             epochs=args.epochs,
-            save_dir=CHECKPOINT_DIR,
-            final_model_path=FINAL_MLM_MODEL_PATH
+            save_dir=lora_checkpoint_dir,
+            final_model_path=lora_model_path,
+            model_name="LoRA"
         )
     else:
-        print(f"[DART] Skipping training. Using saved model at {FINAL_MLM_MODEL_PATH}")
-        state_dict = torch.load(FINAL_MLM_MODEL_PATH, map_location=DEVICE)
-        model.load_state_dict(state_dict)
-        model.eval()
+        print(f"Skipping training. Using saved model at {lora_model_path}")
+        state_dict = torch.load(lora_model_path, map_location=DEVICE)
+        lora_model.load_state_dict(state_dict)
+        lora_model.eval()
 
-    print("\n[DART] Starting evaluation on DART...")
+    print("Starting evaluation")
     evaluate_lora_on_dart(
-        model_path=FINAL_MLM_MODEL_PATH,
+        model_path=lora_model_path,
         masked_dataset=masked_dataset,
         tokenizer=tokenizer,
         device=DEVICE
     )
+
+    print("Training full roberta dart")
+    
+    full_model = RobertaForMaskedLM.from_pretrained("roberta-base")
+    full_model.to(DEVICE)
+
+    full_checkpoint_dir = f"{CHECKPOINT_DIR}_full"
+    full_model_path = "roberta_full_mlm.pt"
+    
+    if not USE_SAVED_CHECKPOINT or not os.path.exists(full_model_path):
+        full_optimizer = AdamW(full_model.parameters(), lr=args.lr, weight_decay=0.01)
+        loss_fn = nn.CrossEntropyLoss(ignore_index=-100)
+
+        print(f"Full Model - Trainable params: {sum(p.numel() for p in full_model.parameters()):,}")
+        print(f"Full Model - Total params: {sum(p.numel() for p in full_model.parameters()):,}")
+        
+        full_model = train_mlm(
+            full_model,
+            dataloader,
+            full_optimizer,
+            loss_fn,
+            device=DEVICE,
+            epochs=args.epochs,
+            save_dir=full_checkpoint_dir,
+            final_model_path=full_model_path,
+            model_name="Full"
+        )
+    else:
+        print(f"[DART] Skipping training. Using saved model at {full_model_path}")
+        state_dict = torch.load(full_model_path, map_location=DEVICE)
+        full_model.load_state_dict(state_dict)
+        full_model.eval()
+
+    print("[DART] Starting evaluation")
+    
+    evaluate_lora_on_dart(
+        model_path=full_model_path,
+        masked_dataset=masked_dataset,
+        tokenizer=tokenizer,
+        device=DEVICE
+    )
+
+    print("COMPARISON SUMMARY")
+    lora_trainable = sum(p.numel() for p in lora_model.parameters() if p.requires_grad)
+    lora_total = sum(p.numel() for p in lora_model.parameters())
+    full_trainable = sum(p.numel() for p in full_model.parameters())
+    
+    print(f"LoRA Model:")
+    print(f"Trainable: {lora_trainable:,} / {lora_total:,} ({100 * lora_trainable / lora_total:.2f}%)")
+    print(f"Full Fine-Tuned Model:")
+    print(f"Trainable: {full_trainable:,} / {full_trainable:,} (100.00%)")
 
 
 def prepare_trec_datasets(max_length=128, train_bs=16, test_bs=32):
@@ -293,13 +358,13 @@ def main():
     parser.add_argument("--batch_size", type=int, default=8)
 
     parser.add_argument("--max_length", type=int, default=128)
-    parser.add_argument("--train_batch_size", type=int, default=16, help="TREC train batch size.")
-    parser.add_argument("--test_batch_size", type=int, default=32, help="TREC test batch size.")
-    parser.add_argument("--num_labels", type=int, default=6, help="Number of labels for TREC classification.")
+    parser.add_argument("--train_batch_size", type=int, default=16)
+    parser.add_argument("--test_batch_size", type=int, default=32)
+    parser.add_argument("--num_labels", type=int, default=6)
 
-    parser.add_argument("--lora_r", type=int, default=8, help="LoRA rank for TREC.")
-    parser.add_argument("--lora_alpha", type=int, default=16, help="LoRA alpha for TREC.")
-    parser.add_argument("--lora_dropout", type=float, default=0.1, help="LoRA dropout for TREC.")
+    parser.add_argument("--lora_r", type=int, default=8)
+    parser.add_argument("--lora_alpha", type=int, default=16)
+    parser.add_argument("--lora_dropout", type=float, default=0.1)
 
     args = parser.parse_args()
 

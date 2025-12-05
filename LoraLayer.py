@@ -25,7 +25,6 @@ class LoRALayer(nn.Module):
         x = x.to(self.lora_A.weight.device)
         return self.dropout(self.lora_B(self.lora_A(x))) * self.scaling
     
-
 class LoRARobertaMLM(nn.Module):
     def __init__(self, base_model_name="roberta-base", r=8, alpha=32):
         super().__init__()
