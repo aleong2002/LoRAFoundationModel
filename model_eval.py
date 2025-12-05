@@ -1,5 +1,3 @@
-# model_eval.py
-
 import os
 import time
 import gc
@@ -19,10 +17,6 @@ def evaluate_lora_on_dart(
     device,
     output_dir="lora_outputs"
 ):
-    """
-    Evaluate LoRA model on DART masked language modeling task.
-
-    """
     os.makedirs(output_dir, exist_ok=True)
 
     model = load_model_from_checkpoint(model_path, device)
@@ -36,23 +30,19 @@ def evaluate_lora_on_dart(
     skipped = 0
 
     test_data = masked_dataset["test"]
-    print(f"\nEvaluating on {len(test_data)} test examples...")
 
     for idx, example in enumerate(tqdm(test_data, desc="Evaluating")):
         try:
             input_text = example["input"]
             target_text = example["target"]
 
-            # Ensure exactly one logical [MASK] in the text, like in preprocessing
             parts = input_text.split("[MASK]")
             if len(parts) > 2:
                 input_text = "[MASK]".join(parts[:2])
 
-            # Replace [MASK] with tokenizer's special mask token
             if "[MASK]" in input_text:
                 masked_text = input_text.replace("[MASK]", tokenizer.mask_token)
             else:
-                # If no mask marker, skip this example (consistent with training)
                 skipped += 1
                 continue
 
@@ -69,9 +59,8 @@ def evaluate_lora_on_dart(
 
             with torch.no_grad():
                 outputs = model(input_ids=input_ids, attention_mask=attention_mask)
-            logits = outputs.logits  # [1, seq_len, vocab]
+            logits = outputs.logits
 
-            # Find mask position
             mask_positions = (input_ids == tokenizer.mask_token_id).nonzero(as_tuple=True)
             if len(mask_positions[1]) == 0:
                 skipped += 1
@@ -89,7 +78,6 @@ def evaluate_lora_on_dart(
             ]
             predicted_token = top_predictions[0] if top_predictions else ""
 
-            # Target: FIRST WORD (to match preprocessing)
             target_tokens = target_text.split()
             target_token = target_tokens[0] if target_tokens else target_text
 
@@ -100,7 +88,6 @@ def evaluate_lora_on_dart(
             correct += int(is_correct)
             total += 1
 
-            # BLEU / ROUGE at token-level (simple)
             try:
                 pred_words = predicted_token.split() if predicted_token else ["unk"]
                 target_words = target_token.split() if target_token else ["unk"]
@@ -128,20 +115,17 @@ def evaluate_lora_on_dart(
                 "ROUGE-L": round(rouge_score, 3)
             }
 
-            # Add top-5 predictions for inspection
             for i in range(min(5, len(top_predictions))):
                 result[f"Top_{i+1}"] = top_predictions[i]
                 result[f"Score_{i+1}"] = round(top_scores[i].item(), 3)
 
             results.append(result)
 
-            # Track GPU memory
             if torch.cuda.is_available():
                 mem = torch.cuda.max_memory_allocated() / 1e9
                 if mem > max_memory:
                     max_memory = mem
 
-            # Print a few examples for sanity
             if idx < 10 or (idx % 1000 == 0):
                 print(f"\nExample {idx}:")
                 print(f"  Input: {example['input']}")
@@ -161,7 +145,7 @@ def evaluate_lora_on_dart(
         torch.cuda.empty_cache()
     gc.collect()
 
-    print(f"\nProcessing complete. Total evaluated: {total}, Skipped: {skipped}")
+    print(f"processing complete. Total evaluated: {total}, Skipped: {skipped}")
 
     if len(results) > 0:
         results_df = pd.DataFrame(results)
@@ -205,13 +189,9 @@ def evaluate_lora_on_dart(
     })
     eff_df.to_csv(os.path.join(output_dir, "lora_efficiency.csv"), index=False)
 
-    print("\n" + "=" * 60)
-    print("EVALUATION RESULTS")
-    print("=" * 60)
     print(f"Total examples: {len(test_data)}")
     print(f"Evaluated: {total}")
     print(f"Skipped: {skipped}")
-    # Build accuracy string safely
     if total > 0:
         accuracy_str = f"{correct}/{total} ({accuracy:.2%})"
     else:

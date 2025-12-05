@@ -1,5 +1,8 @@
 from torch.utils.data import DataLoader
 
+# code references used:
+# code reference: https://anirbansen2709.medium.com/finetuning-llms-using-lora-77fb02cbbc48
+# huggingface docs: https://huggingface.co/docs
 
 class Preprocessor:
 
@@ -13,7 +16,6 @@ class Preprocessor:
         try:
             mask_index = input_ids.index(self.tokenizer.mask_token_id)
         except ValueError:
-            # No mask token → ignore this example for loss
             return [-100] * len(input_ids)
 
         target_str = target_str.strip()
@@ -30,7 +32,6 @@ class Preprocessor:
         if not target_ids:
             label_id = self.tokenizer.unk_token_id
         else:
-            # Use FIRST subword id as the label for the masked position
             label_id = target_ids[0]
 
         labels = [-100] * len(input_ids)
@@ -46,13 +47,11 @@ class Preprocessor:
 
         parts = raw_input.split("[MASK]")
         if len(parts) > 2:
-            # Keep only the first [MASK], drop the rest
             raw_input = "[MASK]".join(parts[:2])
 
-        # Replace textual [MASK] with tokenizer's special mask token
         masked_text = raw_input.replace("[MASK]", tokenizer.mask_token)
 
-        # Tokenize input
+        # tokenize input
         enc = tokenizer(
             masked_text,
             padding="max_length",
@@ -73,7 +72,7 @@ class Preprocessor:
             batched=False
         )
 
-        # Set HuggingFace dataset format for PyTorch
+        # use hugging face format
         tokenized_train.set_format(
             type="torch",
             columns=["input_ids", "attention_mask", "labels"]

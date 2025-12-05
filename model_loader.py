@@ -4,10 +4,9 @@ import torch
 
 from LoraLayer import LoRARobertaMLM
 
+# code references: https://docs.pytorch.org/tutorials/beginner/saving_loading_models.html
+
 def load_model_from_checkpoint(model_path, device):
-    """
-    Load LoRA model from checkpoint (.pt).
-    """
     model = LoRARobertaMLM()
 
     state_dict = torch.load(model_path, map_location=device)
@@ -16,14 +15,13 @@ def load_model_from_checkpoint(model_path, device):
     model.eval()
     model.to(device)
 
-    print(f"Model loaded from {model_path}")
+    print(f"model loaded from {model_path}")
 
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     total_params = sum(p.numel() for p in model.parameters())
     print(f"Loaded model - Trainable: {trainable_params:,} / Total: {total_params:,}")
 
     return model
-
 
 def save_checkpoint(model, optimizer, epoch, loss, save_dir="checkpoints"):
     os.makedirs(save_dir, exist_ok=True)
@@ -37,7 +35,7 @@ def save_checkpoint(model, optimizer, epoch, loss, save_dir="checkpoints"):
 
 def load_latest_checkpoint(model, optimizer, save_dir="checkpoints"):
     if not os.path.exists(save_dir):
-        return 0  # No checkpoint found
+        return 0  
 
     checkpoints = sorted(os.listdir(save_dir), reverse=True)
     for ckpt in checkpoints:
@@ -47,7 +45,7 @@ def load_latest_checkpoint(model, optimizer, save_dir="checkpoints"):
             model.load_state_dict(checkpoint["model_state_dict"])
             optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
             print(f"Resumed from checkpoint: {ckpt}")
-            return checkpoint["epoch"] + 1  # Resume from next epoch
+            return checkpoint["epoch"] + 1 
     return 0
 
 def save_checkpoint_to_drive(model, optimizer, epoch, loss, drive_path="checkpoints"):
